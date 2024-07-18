@@ -3,6 +3,22 @@
 */
 
 #include <ArduinoBLE.h>
+#include <SPI.h>
+#include <TFT_eSPI.h>
+
+TFT_eSPI tft = TFT_eSPI();
+
+void displayT(String addr, float batt, float temp, float humid, int ticks, int rssi) {
+  tft.fillScreen(TFT_BLACK);
+  tft.drawRect(0, 0, tft.width(), tft.height(), TFT_GREEN);
+  tft.setCursor(0, 4, 4);
+  tft.setTextColor(TFT_GREEN);
+  tft.println(addr.substring(6));
+  tft.println(temp);
+  tft.println(humid);
+  tft.println(rssi);
+  tft.println(batt);
+}
 
 void dbg(BLEDevice peripheral) {
   Serial.print("Address: ");
@@ -58,6 +74,7 @@ void advHandler(BLEDevice dev) {
         Serial.print(" Rssi: ");
         Serial.print(dev.rssi());
         Serial.println();
+        displayT(dev.address(), b, t, h, tm, dev.rssi());
       }
     }
   }
@@ -72,6 +89,7 @@ void setup() {
   }
   BLE.setEventHandler(BLEDiscovered, advHandler);
   BLE.scan(true);
+  tft.init();
 }
 
 void loop() {
