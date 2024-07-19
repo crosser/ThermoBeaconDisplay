@@ -8,16 +8,29 @@
 
 TFT_eSPI tft = TFT_eSPI();
 
-void displayT(String addr, float batt, float temp, float humid, int ticks, int rssi) {
+void displayT(String addr, int bat, int tmp, int hum, int ticks, int rssi) {
   tft.fillScreen(TFT_BLACK);
   tft.drawRect(0, 0, tft.width(), tft.height(), TFT_GREEN);
   tft.setCursor(0, 4, 4);
+  tft.setTextColor(TFT_WHITE);
+  tft.setTextSize(1);
+  tft.println(addr);
+  tft.setTextColor(TFT_RED);
+  tft.setTextSize(2);
+  tft.print(tmp / 10);
+  tft.print(".");
+  tft.println(tmp % 10);
+  tft.setTextColor(TFT_BLUE);
+  tft.print(hum / 10);
+  tft.print(".");
+  tft.println(hum % 10);
   tft.setTextColor(TFT_GREEN);
-  tft.println(addr.substring(6));
-  tft.println(temp);
-  tft.println(humid);
+  tft.setTextSize(1);
+  tft.print(bat / 100);
+  tft.print(".");
+  tft.print(bat % 100);
+  tft.print(" ");
   tft.println(rssi);
-  tft.println(batt);
 }
 
 void dbg(BLEDevice peripheral) {
@@ -58,23 +71,23 @@ void advHandler(BLEDevice dev) {
       if (len == 20) {
         uint8_t buf[20];
         dev.manufacturerData(buf, len);
-        float b = (float)((buf[11] << 8) + buf[10]) / 1000.0;
-        float t = (float)((buf[13] << 8) + buf[12]) / 16.0;
-        float h = (float)((buf[15] << 8) + buf[14]) / 16.0;
-        uint32_t tm = (buf[18] << 16) + (buf[17] << 8) + buf[16];
+        int bat = ((buf[11] << 8) + buf[10]) / 10;
+        int tmp = ((buf[13] << 8) + buf[12]) * 10 / 16;
+        int hum = ((buf[15] << 8) + buf[14]) * 10 / 16;
+        uint32_t ticks = (buf[18] << 16) + (buf[17] << 8) + buf[16];
         Serial.print(dev.address());
         Serial.print(" Bat: ");
-        Serial.print(b);
+        Serial.print(bat);
         Serial.print(" Temp: ");
-        Serial.print(t);
+        Serial.print(tmp);
         Serial.print(" Hum: ");
-        Serial.print(h);
+        Serial.print(hum);
         Serial.print(" Tm: ");
-        Serial.print(tm);
+        Serial.print(ticks);
         Serial.print(" Rssi: ");
         Serial.print(dev.rssi());
         Serial.println();
-        displayT(dev.address(), b, t, h, tm, dev.rssi());
+        displayT(dev.address().substring(6), bat, tmp, hum, ticks, dev.rssi());
       }
     }
   }
