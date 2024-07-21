@@ -2,19 +2,42 @@
   Listen to advertisements of ThermoBeacons and display
 */
 
+#include <stdlib.h>
 #include <ArduinoBLE.h>
 #include <SPI.h>
 #include <TFT_eSPI.h>
 
+#define SLOTS 2
+
+struct entry {
+  char addr[12];
+  int bat;
+  int tmp;
+  int hum;
+  int ticks;
+  int rssi;
+};
+
+struct entry **head;
+struct entry *slot[SLOTS];
+
+String viewports[] = { "00:00:0b:15", "00:00:01:40" };
+
 TFT_eSPI tft = TFT_eSPI();
 
 void displayT(String addr, int bat, int tmp, int hum, int ticks, int rssi) {
+
+  for (int i = 0; i <= 1; i++) {
+    if (viewports[i] == addr) {
+      tft.setViewport(i * (tft.width() / 2), 0, tft.width() / 2, tft.height());
+    }
+  }
   tft.fillScreen(TFT_BLACK);
-  tft.drawRect(0, 0, tft.width(), tft.height(), TFT_GREEN);
-  tft.setCursor(0, 4, 4);
+  tft.frameViewport(TFT_NAVY, 1);
+  tft.setCursor(4, 4, 4);
   tft.setTextColor(TFT_WHITE);
   tft.setTextSize(1);
-  tft.println(addr);
+  tft.println(addr.substring(3));
   tft.setTextColor(TFT_RED);
   tft.setTextSize(2);
   tft.print(tmp / 10);
@@ -24,13 +47,14 @@ void displayT(String addr, int bat, int tmp, int hum, int ticks, int rssi) {
   tft.print(hum / 10);
   tft.print(".");
   tft.println(hum % 10);
-  tft.setTextColor(TFT_GREEN);
-  tft.setTextSize(1);
-  tft.print(bat / 100);
-  tft.print(".");
-  tft.print(bat % 100);
-  tft.print(" ");
-  tft.println(rssi);
+  // tft.setTextColor(TFT_GREEN);
+  // tft.setTextSize(1);
+  // tft.print(bat / 100);
+  // tft.print(".");
+  // tft.print(bat % 100);
+  // tft.print(" ");
+  // tft.println(rssi);
+  tft.resetViewport();
 }
 
 void dbg(BLEDevice peripheral) {
@@ -103,6 +127,12 @@ void setup() {
   BLE.setEventHandler(BLEDiscovered, advHandler);
   BLE.scan(true);
   tft.init();
+  tft.setRotation(1);
+  tft.fillScreen(TFT_BLACK);
+  tft.setViewport(0, 0, tft.width() / 2, tft.height());
+  tft.resetViewport();
+  tft.setViewport(tft.width() / 2, 0, tft.width() / 2, tft.height());
+  tft.resetViewport();
 }
 
 void loop() {
