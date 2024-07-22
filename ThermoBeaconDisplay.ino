@@ -2,24 +2,27 @@
   Listen to advertisements of ThermoBeacons and display
 */
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <ArduinoBLE.h>
 #include <SPI.h>
 #include <TFT_eSPI.h>
 
 #define SLOTS 2
+#define MAXAGE 100
 
 struct entry {
+  struct entry *next;
   char addr[12];
   int bat;
   int tmp;
   int hum;
   int ticks;
   int rssi;
+  int age;
 };
 
-struct entry **head;
-struct entry *slot[SLOTS];
+struct entry *head;
 
 String viewports[] = { "00:00:0b:15", "00:00:01:40" };
 
@@ -29,7 +32,7 @@ void displayT(String addr, int bat, int tmp, int hum, int ticks, int rssi) {
 
   for (int i = 0; i <= 1; i++) {
     if (viewports[i] == addr) {
-      tft.setViewport(i * (tft.width() / 2) + 4, 4, tft.width() / 2 - 4, tft.height() - 4);
+      tft.setViewport(i * (tft.width() / 2) + 4, 4, tft.width() / 2 - 8, tft.height() - 8);
     }
   }
   tft.fillScreen(TFT_BLACK);
@@ -57,6 +60,125 @@ void displayT(String addr, int bat, int tmp, int hum, int ticks, int rssi) {
 }
 
 void updateCache(String addr, int bat, int tmp, int hum, int ticks, int rssi) {
+  struct entry *update = NULL;
+  struct entry **cur_p = &head;
+  struct entry *cur = *cur_p;
+  struct entry *slots[SLOTS] = {NULL};
+  int pos = 0;
+  bool needinsert = true;
+  bool mayupdate = true;
+  struct entry nentry;
+  
+  while (cur) {
+    if (pos < SLOTS) slots[pos] = cur;
+    if (strcmp(cur->addr, addr.c_str()) == 0) {
+      Serial.print("found same address ");
+      Serial.print(addr);
+      Serial.print(" at pos ");
+      Serial.println(pos);
+      if (mayupdate && ((cur->rssi <= rssi) || !cur->next || (cur->next->rssi <= rssi))) {
+        Serial.print("at suitable insertion point at pos ");
+        Serial.print(pos);
+        Serial.print(" new rssi ");
+        Serial.print(rssi);
+        Serial.print(" current rssi ");
+        Serial.print(cur->rssi);
+        Serial.print(" next rssi ");
+        Serial.println(cur->next ? cur->next->rssi : 999999);
+        needinsert = false;
+        update = cur;
+        nentry = (struct entry) {
+          .bat = bat,
+          .hum = hum,
+          .ticks = ticks,
+          .rssi = rssi
+          };
+        strncpy(nentry.addr, addr.c_str(), sizeof(nentry.addr));
+        nentry.addr[sizeof(nentry.addr) - 1] = '\0';
+      } else {
+        Serial.print("removing same address at pos ");
+        Serial.println(pos);
+        (*cur_p) = cur->next;
+        free(cur);
+        cur = *cur_p;
+        if (pos < SLOTS) slots[pos] = NULL;
+      }
+    }
+    if (cur->age > MAXAGE) {
+        Serial.print("removing old age pos ");
+        Serial.println(pos);
+        (*cur_p) = cur->next;
+        free(cur);
+        cur = *cur_p;
+        if (pos < SLOTS) slots[pos] = NULL;
+    } else {
+      Serial.print("Increaing age for ");
+      Serial.println(cur->addr);
+      cur->age++;
+    }
+    if (needinsert && (cur->rssi < rssi)) {
+      Serial.print("inserting addr ");
+      Serial.print(addr);
+      Serial.print(" at pos ");
+      Serial.println(pos);
+      (*cur_p) = (struct entry*)malloc(sizeof(struct entry));
+      (**cur_p) = (struct entry) {
+        .next = cur,
+        .bat = bat,
+        .hum = hum,
+        .ticks = ticks,
+        .rssi = rssi
+      };
+      strncpy((*cur_p)->addr, addr.c_str(), sizeof(nentry.addr));
+      (*cur_p)->addr[sizeof(nentry.addr) - 1] = '\0';
+      needinsert = false;
+      mayupdate = false;
+    }
+    cur_p = &(cur->next);
+    cur = *cur_p;
+    pos++;
+  }
+  if (needinsert) {
+    Serial.print("inserting addr ");
+    Serial.print(addr);
+    Serial.println(" at the tail");
+    (*cur_p) = (struct entry*)malloc(sizeof(struct entry));
+    (**cur_p) = (struct entry) {
+      .next = cur,
+      .bat = bat,
+      .hum = hum,
+      .ticks = ticks,
+      .rssi = rssi
+    };
+    strncpy((*cur_p)->addr, addr.c_str(), sizeof(nentry.addr));
+    (*cur_p)->addr[sizeof(nentry.addr) - 1] = '\0';
+  }
+  for (cur = head, pos = 0; pos < SLOTS; cur = cur ? cur->next : cur, pos++) {
+    if (update && (slots[pos] == update)) {
+      // old = slots[pos], new = nentry
+      Serial.print("Display as updated pos ");
+      Serial.print(pos);
+      Serial.print(" addr was ");
+      Serial.print(slots[pos] ? slots[pos]->addr : "NONE");
+      Serial.print(" now ");
+      Serial.println(nentry.addr);
+    } else {
+      //old = slots[pos], new = cur
+      Serial.print("Display as new pos ");
+      Serial.print(pos);
+      Serial.print(" addr was ");
+      Serial.print(slots[pos] ? slots[pos]->addr : "NONE");
+      Serial.print(" now ");
+      Serial.println(cur ? cur->addr : "NULL");
+    }
+  }
+  if (update) {
+    update->bat = nentry.bat;
+    update->hum = nentry.hum;
+    update->ticks = nentry.ticks;
+    update->rssi = nentry.rssi;
+    update->age = 0;
+  }
   displayT(addr, bat, tmp, hum, ticks, rssi);
 }
 
@@ -102,6 +224,7 @@ void advHandler(BLEDevice dev) {
         int tmp = ((buf[13] << 8) + buf[12]) * 10 / 16;
         int hum = ((buf[15] << 8) + buf[14]) * 10 / 16;
         uint32_t ticks = (buf[18] << 16) + (buf[17] << 8) + buf[16];
+        /*
         Serial.print(dev.address());
         Serial.print(" Bat: ");
         Serial.print(bat);
@@ -114,6 +237,7 @@ void advHandler(BLEDevice dev) {
         Serial.print(" Rssi: ");
         Serial.print(dev.rssi());
         Serial.println();
+        */
         updateCache(dev.address().substring(6), bat, tmp, hum, ticks, dev.rssi());
       }
     }
