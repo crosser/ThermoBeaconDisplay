@@ -29,12 +29,11 @@ void displayT(String addr, int bat, int tmp, int hum, int ticks, int rssi) {
 
   for (int i = 0; i <= 1; i++) {
     if (viewports[i] == addr) {
-      tft.setViewport(i * (tft.width() / 2), 0, tft.width() / 2, tft.height());
+      tft.setViewport(i * (tft.width() / 2) + 4, 4, tft.width() / 2 - 4, tft.height() - 4);
     }
   }
   tft.fillScreen(TFT_BLACK);
-  tft.frameViewport(TFT_NAVY, 1);
-  tft.setCursor(4, 4, 4);
+  tft.setCursor(0, 0, 4);
   tft.setTextColor(TFT_WHITE);
   tft.setTextSize(1);
   tft.println(addr.substring(3));
@@ -55,6 +54,10 @@ void displayT(String addr, int bat, int tmp, int hum, int ticks, int rssi) {
   // tft.print(" ");
   // tft.println(rssi);
   tft.resetViewport();
+}
+
+void updateCache(String addr, int bat, int tmp, int hum, int ticks, int rssi) {
+  displayT(addr, bat, tmp, hum, ticks, rssi);
 }
 
 void dbg(BLEDevice peripheral) {
@@ -111,7 +114,7 @@ void advHandler(BLEDevice dev) {
         Serial.print(" Rssi: ");
         Serial.print(dev.rssi());
         Serial.println();
-        displayT(dev.address().substring(6), bat, tmp, hum, ticks, dev.rssi());
+        updateCache(dev.address().substring(6), bat, tmp, hum, ticks, dev.rssi());
       }
     }
   }
@@ -130,8 +133,10 @@ void setup() {
   tft.setRotation(1);
   tft.fillScreen(TFT_BLACK);
   tft.setViewport(0, 0, tft.width() / 2, tft.height());
+  tft.frameViewport(TFT_NAVY, 1);
   tft.resetViewport();
   tft.setViewport(tft.width() / 2, 0, tft.width() / 2, tft.height());
+  tft.frameViewport(TFT_NAVY, 1);
   tft.resetViewport();
 }
 
