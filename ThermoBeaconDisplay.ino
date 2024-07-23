@@ -52,6 +52,7 @@ void dbgEntry(struct entry *entry)
 void dbgOp(int pos, String str1, struct entry *entry1,
 	   String str2, struct entry *entry2)
 {
+#if 0
     Serial.print("pos ");
     Serial.print(pos);
     Serial.print(" ");
@@ -65,36 +66,58 @@ void dbgOp(int pos, String str1, struct entry *entry1,
 	dbgEntry(entry2);
     }
     Serial.println();
+#endif
 }
+
+void dbgVal(int oldv, int newv, int xpos, int yf, int yt, int colour) {
+#if 0
+    Serial.print("oldv ");
+    Serial.print(oldv);
+    Serial.print(" newv ");
+    Serial.print(newv);
+    Serial.print(" xpos ");
+    Serial.print(xpos);
+    Serial.print(" yf ");
+    Serial.print(yf);
+    Serial.print(" yt ");
+    Serial.print(yt);
+    Serial.print(" colour ");
+    Serial.print(colour);
+    Serial.println();
+#endif
+}
+
+void dispel(int oldv, int newv, int xpos, int yf, int yt, int colour) {
+    dbgVal(oldv, newv, xpos, yf, yt, colour);
+    if (oldv == newv) return;
+    tft.setViewport(xpos * (tft.width() / 2) + 10, yf + 2,
+		    tft.width() / 2 - 12, yt - 2);
+    tft.setCursor(0, 0, 4);
+    tft.setTextSize(2);
+    if (oldv) {
+        tft.fillScreen(TFT_BLACK);
+//        tft.setTextColor(TFT_BLACK);
+//        tft.print(oldv / 10);
+//        tft.print(".");
+//        tft.print(oldv % 10);
+    }
+    if (newv) {
+        tft.setTextColor(colour);
+        tft.print(newv / 10);
+        tft.print(".");
+        tft.print(newv % 10);
+    } else {
+        tft.fillScreen(TFT_BLACK);
+    }
+    tft.resetViewport();
+}
+
+#define FL(st, fl) (st ? st->fl : 0)
 
 void display(int pos, entry *oldval, entry *newval)
 {
-    if (!newval)
-	return;
-    tft.setViewport(pos * (tft.width() / 2) + 4, 4,
-		    tft.width() / 2 - 8, tft.height() - 8);
-    tft.fillScreen(TFT_BLACK);
-    tft.setCursor(0, 0, 4);
-    tft.setTextColor(TFT_WHITE);
-    tft.setTextSize(1);
-    tft.println(newval->addr + 3);
-    tft.setTextColor(TFT_RED);
-    tft.setTextSize(2);
-    tft.print(newval->tmp / 10);
-    tft.print(".");
-    tft.println(newval->tmp % 10);
-    tft.setTextColor(TFT_BLUE);
-    tft.print(newval->hum / 10);
-    tft.print(".");
-    tft.println(newval->hum % 10);
-    // tft.setTextColor(TFT_GREEN);
-    // tft.setTextSize(1);
-    // tft.print(newval->bat / 100);
-    // tft.print(".");
-    // tft.print(newval->bat % 100);
-    // tft.print(" ");
-    // tft.println(newval->rssi);
-    tft.resetViewport();
+    dispel(FL(oldval, tmp), FL(newval, tmp), pos, 30, 50, TFT_YELLOW);
+    dispel(FL(oldval, hum), FL(newval, hum), pos, 80, 50, TFT_BLUE);
 }
 
 void updateCache(struct entry *newentry)
