@@ -92,8 +92,8 @@ void dispbat(int oldv, int newv, int xpos, int yf, int yt) {
     if (olen < 0) olen = 0;
     if (olen > 30) olen = 30;
     int nlen = (newv - 230) * 30 / 80;
-    if (olen < 0) olen = 0;
-    if (olen > 30) olen = 30;
+    if (nlen < 0) nlen = 0;
+    if (nlen > 30) nlen = 30;
     dbgVal(olen, nlen, xpos, yf, yt, 0);
     if (olen == nlen) return;
     tft.setViewport(xpos * (tft.width() / 2) + 10, yf + 2, 40, yt - 2);
@@ -101,6 +101,28 @@ void dispbat(int oldv, int newv, int xpos, int yf, int yt) {
     int colour = nlen > 5 ? TFT_GREEN : TFT_RED;
     tft.drawRect(5, 10, 30, tft.height() - 15, colour);
     tft.fillRect(5, 10, nlen, tft.height() - 15, colour);
+    tft.resetViewport();
+}
+
+
+void disprssi(int oldv, int newv, int xpos, int yf, int yt) {
+    dbgVal(oldv, newv, xpos, yf, yt, -8);
+    int olen = (oldv + 100) / 10;
+    if (olen < 0) olen = 0;
+    if (olen > 4) olen = 4;
+    int nlen = (newv + 100) / 10;
+    if (nlen < 0) nlen = 0;
+    if (nlen > 4) nlen = 4;
+    dbgVal(olen, nlen, xpos, yf, yt, -9);
+    if (olen == nlen) return;
+    tft.setViewport(xpos * (tft.width() / 2) + 70, yf + 2, 40, yt - 2);
+    tft.fillScreen(TFT_BLACK);
+    int colour = nlen > 1 ? TFT_GREEN : TFT_RED;
+    int maxy = tft.height() - 15;
+    for (int i = 0; i < nlen; i++) {
+        int h = (i + 1) * maxy / 5;
+        tft.fillRect(5 + i * 6, 10 + maxy - h, 3, h, colour);
+    }
     tft.resetViewport();
 }
 
@@ -136,6 +158,7 @@ void dispel(int oldv, int newv, int xpos, int yf, int yt, int colour) {
 void display(int pos, entry *oldval, entry *newval)
 {
     dispbat(FL(oldval, bat), FL(newval, bat), pos, 0, 30);
+    disprssi(FL(oldval, rssi), FL(newval, rssi), pos, 0, 30);
     dispel(FL(oldval, tmp), FL(newval, tmp), pos, 30, 50, TFT_YELLOW);
     dispel(FL(oldval, hum), FL(newval, hum), pos, 80, 50, TFT_CYAN);
 }
