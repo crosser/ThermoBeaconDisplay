@@ -87,21 +87,40 @@ void dbgVal(int oldv, int newv, int xpos, int yf, int yt, int colour) {
 #endif
 }
 
+void dispbat(int oldv, int newv, int xpos, int yf, int yt) {
+    int olen = (oldv - 230) * 30 / 80;
+    if (olen < 0) olen = 0;
+    if (olen > 30) olen = 30;
+    int nlen = (newv - 230) * 30 / 80;
+    if (olen < 0) olen = 0;
+    if (olen > 30) olen = 30;
+    dbgVal(olen, nlen, xpos, yf, yt, 0);
+    if (olen == nlen) return;
+    tft.setViewport(xpos * (tft.width() / 2) + 10, yf + 2, 40, yt - 2);
+    tft.fillScreen(TFT_BLACK);
+    int colour = nlen > 5 ? TFT_GREEN : TFT_RED;
+    tft.drawRect(5, 10, 30, tft.height() - 15, colour);
+    tft.fillRect(5, 10, nlen, tft.height() - 15, colour);
+    tft.resetViewport();
+}
+
 void dispel(int oldv, int newv, int xpos, int yf, int yt, int colour) {
     dbgVal(oldv, newv, xpos, yf, yt, colour);
     if (oldv == newv) return;
     tft.setViewport(xpos * (tft.width() / 2) + 10, yf + 2,
-		    tft.width() / 2 - 12, yt - 2);
+		    tft.width() / 2 - 12, yt - 4);
     tft.setCursor(0, 0, 4);
     tft.setTextSize(2);
+/*
     if (oldv) {
-        tft.fillScreen(TFT_BLACK);
-//        tft.setTextColor(TFT_BLACK);
-//        tft.print(oldv / 10);
-//        tft.print(".");
-//        tft.print(oldv % 10);
+        tft.setTextColor(TFT_BLACK);
+        tft.print(oldv / 10);
+        tft.print(".");
+        tft.print(oldv % 10);
     }
+*/
     if (newv) {
+        tft.fillScreen(TFT_BLACK);  // TODO: must not have this. Need debugging
         tft.setTextColor(colour);
         tft.print(newv / 10);
         tft.print(".");
@@ -116,8 +135,9 @@ void dispel(int oldv, int newv, int xpos, int yf, int yt, int colour) {
 
 void display(int pos, entry *oldval, entry *newval)
 {
+    dispbat(FL(oldval, bat), FL(newval, bat), pos, 0, 30);
     dispel(FL(oldval, tmp), FL(newval, tmp), pos, 30, 50, TFT_YELLOW);
-    dispel(FL(oldval, hum), FL(newval, hum), pos, 80, 50, TFT_BLUE);
+    dispel(FL(oldval, hum), FL(newval, hum), pos, 80, 50, TFT_CYAN);
 }
 
 void updateCache(struct entry *newentry)
@@ -178,7 +198,7 @@ void updateCache(struct entry *newentry)
 		    cur = *cur_p;
 		    if (pos < SLOTS)
 			slots[pos] = NULL;
-		    pos--;	// This may make it negative, but it will be bumped up next
+		    pos--;  // This may make it negative, but it will be bumped up next
 		}
 	    }
 	}
