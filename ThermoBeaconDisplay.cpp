@@ -1,5 +1,12 @@
 /*
-  Listen to advertisements of ThermoBeacons and display
+  Listen to advertisements of ThermoBeacons and display.
+  Shows values from two ThermoBeacons with highest RSSI (i.e. the nearest).
+
+  For Lilygo T-Display. TFT_eSPI needs to be configured for that.
+  Text formatting for 138x240 display, in landscape mode.
+  Use --fqbn esp32:esp32:esp32
+  Do _not_ use the copy of TFT_eSPI that Liligo's manual refers to,
+  but do take the user-selecatble configuration file from it.
 */
 
 #include <Arduino.h>
@@ -13,6 +20,12 @@ TFT_eSPI tft = TFT_eSPI();
 
 #define SLOTS 2
 #define MAXAGE 100
+
+struct toggle {
+    bool state = false;
+    unsigned long last = 0L;
+} toggle;
+bool lasttoggle = false;
 
 struct entry {
     char addr[12];
@@ -88,6 +101,26 @@ void dbgVal(int oldv, int newv, int xpos, int yf, int yt, int colour) {
 #endif
 }
 
+void clrtop(int xpos, int yf, int yt) {
+    tft.setViewport(xpos * (tft.width() / 2) + 10, yf + 2,
+		    (tft.width() / 2) - 20 , yt - 2);
+    tft.fillScreen(TFT_BLACK);
+    tft.resetViewport();
+}
+
+void dispaddr(char *oldv, char *newv, int xpos, int yf, int yt) {
+    if (strcmp(oldv, newv)) return;
+    tft.setViewport(xpos * (tft.width() / 2) + 10, yf + 2,
+		    (tft.width() / 2) - 20 , yt - 2);
+    tft.fillScreen(TFT_BLACK);
+    tft.setCursor(0, 0, 4);
+    tft.setTextSize(1);
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextColor(TFT_WHITE);
+    tft.print(newv + 3);
+    tft.resetViewport();
+}
+
 void dispbat(int oldv, int newv, int xpos, int yf, int yt) {
     int olen = (oldv - 230) * 30 / 80;
     if (olen < 0) olen = 0;
@@ -132,10 +165,10 @@ void dispel(int oldv, int newv, int xpos, int yf, int yt, int colour) {
     if (oldv == newv) return;
     tft.setViewport(xpos * (tft.width() / 2) + 10, yf + 2,
 		    tft.width() / 2 - 12, yt - 4);
-    tft.setCursor(0, 0, 4);
     tft.setTextSize(2);
 /*
     if (oldv) {
+	tft.setCursor(0, 0, 4);
         tft.setTextColor(TFT_BLACK);
         tft.print(oldv / 10);
         tft.print(".");
@@ -144,6 +177,7 @@ void dispel(int oldv, int newv, int xpos, int yf, int yt, int colour) {
 */
     if (newv) {
         tft.fillScreen(TFT_BLACK);  // TODO: must not have this. Need debugging
+	tft.setCursor(0, 0, 4);
         tft.setTextColor(colour);
         tft.print(newv / 10);
         tft.print(".");
@@ -158,8 +192,16 @@ void dispel(int oldv, int newv, int xpos, int yf, int yt, int colour) {
 
 void display(int pos, entry *oldval, entry *newval)
 {
-    dispbat(FL(oldval, bat), FL(newval, bat), pos, 0, 30);
-    disprssi(FL(oldval, rssi), FL(newval, rssi), pos, 0, 30);
+    if (toggle.state != lasttoggle) {
+	clrtop(pos, 0, 30);
+	lasttoggle = toggle.state;
+    }
+    if (toggle.state) {
+	dispaddr(FL(oldval, addr), FL(newval, addr), pos, 0, 30);
+    } else {
+	dispbat(FL(oldval, bat), FL(newval, bat), pos, 0, 30);
+	disprssi(FL(oldval, rssi), FL(newval, rssi), pos, 0, 30);
+    }
     dispel(FL(oldval, tmp), FL(newval, tmp), pos, 30, 50, TFT_YELLOW);
     dispel(FL(oldval, hum), FL(newval, hum), pos, 80, 50, TFT_CYAN);
 }
@@ -317,6 +359,14 @@ void advHandler(BLEDevice dev)
     }
 }
 
+void ARDUINO_ISR_ATTR isr(void *arg) {
+    struct toggle *tptr = (struct toggle *)arg;
+    unsigned long now = millis();
+    if (now - tptr->last < 100) return;
+    tptr->last = now;
+    tptr->state = !tptr->state;
+}
+
 void setup()
 {
     Serial.begin(115200);
@@ -325,6 +375,9 @@ void setup()
 	Serial.println("starting Bluetooth® Low Energy module failed!");
 	while (1);
     }
+
+    pinMode(35, INPUT_PULLUP);
+    attachInterruptArg(35, isr, &toggle, RISING);
 
     tft.init();
     tft.setRotation(1);
