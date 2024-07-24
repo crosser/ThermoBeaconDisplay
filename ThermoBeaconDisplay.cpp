@@ -109,7 +109,7 @@ void clrtop(int xpos, int yf, int yt) {
 }
 
 void dispaddr(char *oldv, char *newv, int xpos, int yf, int yt) {
-    if (strcmp(oldv, newv) == 0) return;
+    if (oldv && newv && strcmp(oldv, newv) == 0) return;
     tft.setViewport(xpos * (tft.width() / 2) + 10, yf + 2,
 		    (tft.width() / 2) - 20 , yt - 2);
     tft.fillScreen(TFT_BLACK);
@@ -192,10 +192,7 @@ void dispel(int oldv, int newv, int xpos, int yf, int yt, int colour) {
 
 void display(int pos, entry *oldval, entry *newval)
 {
-    if (toggle.state != lasttoggle) {
-	clrtop(pos, 0, 30);
-	lasttoggle = toggle.state;
-    }
+    if (!oldval) clrtop(pos, 0, 30);
     if (toggle.state) {
 	dispaddr(FL(oldval, addr), FL(newval, addr), pos, 0, 30);
     } else {
@@ -277,6 +274,7 @@ void updateCache(struct entry *newentry)
     }
     for (; pos < SLOTS; pos++) slots[pos] = NULL;
     // Finished modifying the list, now display
+    bool stgl = toggle.state == lasttoggle;
     for (cur = head, pos = 0; pos < SLOTS;
 	 cur = cur ? cur->next : cur, pos++) {
 	if (target && (slots[pos] == target)) {
@@ -284,17 +282,18 @@ void updateCache(struct entry *newentry)
 	    dbgOp(pos, "Display before updating, old",
 		  slots[pos] ? &(slots[pos]->entry) : NULL, "new",
 		  newentry);
-	    display(pos, slots[pos] ? &(slots[pos]->entry) : NULL,
+	    display(pos, (stgl && slots[pos]) ? &(slots[pos]->entry) : NULL,
 		    newentry);
 	} else {
 	    //old = slots[pos], new = cur
 	    dbgOp(pos, "Display as different elems, old",
 		  slots[pos] ? &(slots[pos]->entry) : NULL, "new",
 		  cur ? &(cur->entry) : NULL);
-	    display(pos, slots[pos] ? &(slots[pos]->entry) : NULL,
+	    display(pos, (stgl && slots[pos]) ? &(slots[pos]->entry) : NULL,
 		    cur ? &(cur->entry) : NULL);
 	}
     }
+    lasttoggle = toggle.state;
     // Now we can actually update the entry
     if (target) {
 	target->entry = *newentry;
