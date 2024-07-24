@@ -109,7 +109,7 @@ void clrtop(int xpos, int yf, int yt) {
 }
 
 void dispaddr(char *oldv, char *newv, int xpos, int yf, int yt) {
-    if (strcmp(oldv, newv)) return;
+    if (strcmp(oldv, newv) == 0) return;
     tft.setViewport(xpos * (tft.width() / 2) + 10, yf + 2,
 		    (tft.width() / 2) - 20 , yt - 2);
     tft.fillScreen(TFT_BLACK);
@@ -275,6 +275,7 @@ void updateCache(struct entry *newentry)
 	    pos++;
 	}
     }
+    for (; pos < SLOTS; pos++) slots[pos] = NULL;
     // Finished modifying the list, now display
     for (cur = head, pos = 0; pos < SLOTS;
 	 cur = cur ? cur->next : cur, pos++) {
