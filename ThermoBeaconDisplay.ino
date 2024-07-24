@@ -170,13 +170,16 @@ void updateCache(struct entry *newentry)
     struct elem *slots[SLOTS] = { NULL };
     struct elem *target = NULL;
     int pos = 0;
+    bool not_yet_placed = true;
 
     while (true) {
+	bool step_ahead = true;  // Omit advancing if an element was dropped
 	bool at_the_end = !cur;
 	if (pos < SLOTS)
 	    slots[pos] = cur;
 	// First handle insertion because it _can_ happen with cur == NULL
-	if (at_the_end || cur->entry.rssi < newentry->rssi) {
+	if (not_yet_placed &&
+		(at_the_end || cur->entry.rssi < newentry->rssi)) {
 	    dbgOp(pos, "potentially insert", newentry,
 		  "before", cur ? &(cur->entry) : NULL);
 	    if (cur && strcmp(cur->entry.addr, newentry->addr) == 0) {
@@ -184,18 +187,14 @@ void updateCache(struct entry *newentry)
 		      "replacing", &(cur->entry));
 		target = cur;
 	    } else {
-		if (target) {
-		    dbgOp(pos, "not inserting because update scheduled",
-			  newentry, "before", cur ? &(cur->entry) : NULL);
-		} else {
-		    dbgOp(pos, "really insert", newentry,
-			  "before", cur ? &(cur->entry) : NULL);
-		    (*cur_p) = (struct elem *) malloc(sizeof(struct elem));
-		    (*cur_p)->next = cur;
-		    (*cur_p)->age = 0;
-		    (*cur_p)->entry = *newentry;
-		}
+		dbgOp(pos, "really insert", newentry,
+		           "before", cur ? &(cur->entry) : NULL);
+		(*cur_p) = (struct elem *) malloc(sizeof(struct elem));
+		(*cur_p)->next = cur;
+		(*cur_p)->age = 0;
+		(*cur_p)->entry = *newentry;
 	    }
+            not_yet_placed = false;
 	}
 	if (at_the_end)
 	    break;
@@ -214,6 +213,7 @@ void updateCache(struct entry *newentry)
 		    dbgOp(pos, "update instead of delete", &(cur->entry),
 			  "already at the insersion point for", newentry);
 		    target = cur;
+		    not_yet_placed = false;
 		} else {
 		    dbgOp(pos, "really delete", &(cur->entry), "", NULL);
 		    (*cur_p) = cur->next;
@@ -221,14 +221,16 @@ void updateCache(struct entry *newentry)
 		    cur = *cur_p;
 		    if (pos < SLOTS)
 			slots[pos] = NULL;
-		    pos--;  // This may make it negative, but it will be bumped up next
+		    step_ahead = false;  // Don't advance in the list
 		}
 	    }
 	}
 	// Proceed to the next element of the list
-	cur_p = &(cur->next);
-	cur = *cur_p;
-	pos++;
+	if (step_ahead) {
+	    cur_p = &(cur->next);
+	    cur = *cur_p;
+	    pos++;
+	}
     }
     // Finished modifying the list, now display
     for (cur = head, pos = 0; pos < SLOTS;
