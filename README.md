@@ -29,7 +29,7 @@ freely, subject to the following restrictions:
 
 
 T-Display is an inexpensive dev module based on ESP32 LX6 with a 135x240
-TFT LCD display. It has built-in radio (WiFi & Bluetooth, incl. BLE) that
+TFT LCD display. It has built-in radio (WiFi & Bluetooth, incl. BLE),
 can be powered from 3.3 or 5 V, and programmed over USB using Arduino
 tools and libraries.
 
