@@ -166,15 +166,15 @@ void dispel(int oldv, int newv, int xpos, int yf, int yt, int colour) {
     tft.setViewport(xpos * (tft.width() / 2) + 10, yf + 2,
 		    tft.width() / 2 - 12, yt - 4);
     tft.setTextSize(2);
-/*
     if (oldv) {
 	tft.setCursor(0, 0, 4);
         tft.setTextColor(TFT_BLACK);
         tft.print(oldv / 10);
         tft.print(".");
         tft.print(oldv % 10);
+    } else {
+        tft.fillScreen(TFT_BLACK);
     }
-*/
     if (newv) {
         tft.fillScreen(TFT_BLACK);  // TODO: must not have this. Need debugging
 	tft.setCursor(0, 0, 4);
