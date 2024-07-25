@@ -209,6 +209,7 @@ void updateCache(struct entry *newentry)
     struct elem *cur = *cur_p;
     struct elem *slots[SLOTS] = { NULL };
     struct elem *target = NULL;
+    struct elem *to_remove = NULL;
     int pos = 0;
     bool not_yet_placed = true;
 
@@ -217,6 +218,7 @@ void updateCache(struct entry *newentry)
 	bool at_the_end = !cur;
 	if (pos < SLOTS)
 	    slots[pos] = cur;
+	pos++;
 	// First handle insertion because it _can_ happen with cur == NULL
 	if (not_yet_placed &&
 		(at_the_end || cur->entry.rssi < newentry->rssi)) {
@@ -257,10 +259,9 @@ void updateCache(struct entry *newentry)
 		} else {
 		    dbgOp(pos, "really delete", &(cur->entry), "", NULL);
 		    (*cur_p) = cur->next;
-		    free(cur);
+		    cur->next = to_remove;
+		    to_remove = cur;
 		    cur = *cur_p;
-		    if (pos < SLOTS)
-			slots[pos] = NULL;
 		    step_ahead = false;  // Don't advance in the list
 		}
 	    }
@@ -269,7 +270,6 @@ void updateCache(struct entry *newentry)
 	if (step_ahead) {
 	    cur_p = &(cur->next);
 	    cur = *cur_p;
-	    pos++;
 	}
     }
     for (; pos < SLOTS; pos++) slots[pos] = NULL;
@@ -298,6 +298,12 @@ void updateCache(struct entry *newentry)
     if (target) {
 	target->entry = *newentry;
 	target->age = 0;
+    }
+    // And free elements that we took off the cache
+    for (cur = to_remove; cur; ) {
+	struct elem *next = cur->next;
+	free(cur);
+	cur = next;
     }
 }
 
